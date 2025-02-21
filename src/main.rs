@@ -1,5 +1,6 @@
 use std::{
-    io::{Read, Write},
+    arch::x86_64,
+    io::Read,
     os::fd::AsRawFd,
     process::ExitCode,
     thread::sleep,
@@ -272,7 +273,7 @@ fn render_field(
     snake_head: usize,
     snake_tail: usize,
     apple: Option<(u8, u8)>,
-    score: u8,
+    mut score: u8,
     collide: bool,
 ) {
     // Erase the screen
@@ -305,9 +306,20 @@ fn render_field(
             row_buffer[0] = '│';
             row_buffer[row_buffer.len() - 1] = '│';
 
-            let score = score.to_string().chars().collect::<Vec<char>>();
-            let rowlen = row_buffer.len();
-            row_buffer[rowlen - 2 - score.len()..][..score.len()].copy_from_slice(&score)
+            // 0 = ones, 1 = tens, 2 = hundreds
+            let mut place = 0;
+            if score == 0 {
+                dbg!("zero", score, row_buffer.len() - 3);
+                row_buffer[row_buffer.len() - 3] = '0';
+            } else {
+                while score > 0 {
+                    dbg!("score", score, row_buffer.len() - 3 - place);
+                    row_buffer[row_buffer.len() - 3 - place] =
+                        char::from_digit(score as u32 % 10, 10).unwrap_or(' ');
+                    place += 1;
+                    score /= 10;
+                }
+            }
         } else if rownum == height - 1 {
             for cell in row_buffer.iter_mut() {
                 *cell = '━';
