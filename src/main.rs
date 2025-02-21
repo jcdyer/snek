@@ -1,5 +1,4 @@
 use std::{
-    arch::x86_64,
     io::Read,
     os::fd::AsRawFd,
     process::ExitCode,
@@ -309,11 +308,9 @@ fn render_field(
             // 0 = ones, 1 = tens, 2 = hundreds
             let mut place = 0;
             if score == 0 {
-                dbg!("zero", score, row_buffer.len() - 3);
                 row_buffer[row_buffer.len() - 3] = '0';
             } else {
                 while score > 0 {
-                    dbg!("score", score, row_buffer.len() - 3 - place);
                     row_buffer[row_buffer.len() - 3 - place] =
                         char::from_digit(score as u32 % 10, 10).unwrap_or(' ');
                     place += 1;
