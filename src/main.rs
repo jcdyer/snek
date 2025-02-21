@@ -124,7 +124,6 @@ impl Input {
     }
 }
 fn main() -> ExitCode {
-    let debug = std::fs::File::create("./debug.log").unwrap();
     let _term_guard = die!(TerminalGuard::new());
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
@@ -220,9 +219,7 @@ fn main() -> ExitCode {
         let effective_head =
             snake_head + (snake_buffer.len() * ((snake_head <= snake_tail) as usize));
 
-        writeln!(&debug, "{snake_tail},{snake_head},{effective_head}").unwrap();
         if effective_head - snake_tail >= snake_len {
-            writeln!(&debug, "move-tail").unwrap();
             snake_tail += 1;
             if snake_tail == snake_buffer.len() {
                 snake_tail = 0;
@@ -230,7 +227,6 @@ fn main() -> ExitCode {
         }
 
         if Some(snake_buffer[snake_head]) == apple {
-            writeln!(&debug, "eat-apple: {apple:?}").unwrap();
             snake_len += GROWTH_FACTOR;
             apple = None;
             timer.interval = timer.interval.mul_f32(0.95);
