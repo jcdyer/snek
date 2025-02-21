@@ -11,6 +11,7 @@ use termios::{TCSAFLUSH, Termios, tcsetattr};
 const WIDTH: u8 = 120;
 const HEIGHT: u8 = 50;
 const SECOND: Duration = Duration::from_secs(1);
+const GROWTH_FACTOR: usize = 5;
 
 #[derive(Copy, Clone, Debug)]
 enum Dir {
@@ -130,7 +131,7 @@ fn main() -> ExitCode {
 
     let width: u8 = WIDTH;
     let height: u8 = HEIGHT;
-    let mut snake_buffer = [(u8::MAX, u8::MAX); 100];
+    let mut snake_buffer = [(u8::MAX, u8::MAX); 1024];
     let mut snake_len: usize = 11;
     let mut apple = None;
     let mut apple_ticks = width as u16 + height as u16;
@@ -138,6 +139,8 @@ fn main() -> ExitCode {
     let mut snake_head: usize = snake_len - 1;
     let mut snake_tail: usize = 0;
     let mut dir = Dir::N;
+    let mut score = 0;
+
     for (i, segment) in snake_buffer[..snake_len].iter_mut().enumerate() {
         *segment = (width / 2, (height / 2) + snake_len as u8 - i as u8)
     }
@@ -165,9 +168,12 @@ fn main() -> ExitCode {
         if apple.is_none() || apple_ticks_remaining == 0 {
             apple_ticks_remaining = apple_ticks;
             let random = rng.random();
-            let random = random % (width as u32 * height as u32);
+            let random = random % ((width - 2) as u32 * (height - 2) as u32);
 
-            apple = Some(((random % width as u32) as u8, (random / width as u32) as u8));
+            apple = Some((
+                (random % (width as u32 - 2) + 1) as u8,
+                (random / (width as u32 - 2) + 1) as u8,
+            ));
         }
         apple_ticks_remaining -= 1;
 
@@ -225,16 +231,17 @@ fn main() -> ExitCode {
 
         if Some(snake_buffer[snake_head]) == apple {
             writeln!(&debug, "eat-apple: {apple:?}").unwrap();
-            snake_len += 3;
+            snake_len += GROWTH_FACTOR;
             apple = None;
             timer.interval = timer.interval.mul_f32(0.95);
             timer.start = Instant::now();
             timer.tick = 0;
 
-            apple_ticks = (apple_ticks * 19) / 20;
+            apple_ticks = ((apple_ticks * 19) / 20).max(WIDTH.min(HEIGHT) as u16);
+            score += 1;
         }
 
-        let collide = if loc.0 >= width || loc.0 == 0 || loc.1 > height || loc.1 == 0 {
+        let collide = if loc.0 >= width || loc.0 == 0 || loc.1 >= height || loc.1 == 0 {
             true
         } else if snake_head > snake_tail {
             snake_buffer[snake_tail..snake_head].contains(&loc)
@@ -249,6 +256,7 @@ fn main() -> ExitCode {
             snake_head,
             snake_tail,
             apple,
+            score,
             collide,
         );
 
@@ -260,7 +268,7 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-#[allow(unused_variables)]
+#[allow(unused_variables, clippy::too_many_arguments)]
 fn render_field(
     width: u8,
     height: u8,
@@ -268,6 +276,7 @@ fn render_field(
     snake_head: usize,
     snake_tail: usize,
     apple: Option<(u8, u8)>,
+    score: u8,
     collide: bool,
 ) {
     // Erase the screen
@@ -293,6 +302,16 @@ fn render_field(
             }
             row_buffer[0] = '┍';
             row_buffer[row_buffer.len() - 1] = '┑';
+        } else if rownum == 1 {
+            for cell in row_buffer.iter_mut() {
+                *cell = ' ';
+            }
+            row_buffer[0] = '│';
+            row_buffer[row_buffer.len() - 1] = '│';
+
+            let score = score.to_string().chars().collect::<Vec<char>>();
+            let rowlen = row_buffer.len();
+            row_buffer[rowlen - 2 - score.len()..][..score.len()].copy_from_slice(&score)
         } else if rownum == height - 1 {
             for cell in row_buffer.iter_mut() {
                 *cell = '━';
